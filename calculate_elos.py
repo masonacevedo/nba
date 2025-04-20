@@ -29,6 +29,8 @@ with sqlite3.connect("leaguegamelog_playoffs.db") as playoff_conn:
 
 reg_season_games = reg_season_cursor.fetchall()
 playoff_games = playoff_cursor.fetchall()
+reg_season_games = [g + ("regular season",) for g in reg_season_games]
+playoff_games = [g + ("playoffs",) for g in playoff_games]
 
 all_games = reg_season_games + playoff_games
 
@@ -37,12 +39,5 @@ print("len(reg_season_games)", len(reg_season_games))
 print("len(playoff_games", len(playoff_games))
 print("len(all_games)", len(all_games))
 
-# for c in columns:
-    # print(c)
-
 all_games = sorted(all_games, key=lambda game: dateFromGame(game))
 
-for index, g in enumerate(all_games):
-    if index > 140000:
-        print(g)
-        input()
