@@ -19,3 +19,4 @@ print()
 print(f"there are {num_games} games in the table")
 for row in cursor:
     print(row)
+    input()

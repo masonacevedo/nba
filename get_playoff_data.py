@@ -16,7 +16,7 @@ def buildDict(headers, row):
     game["VIDEO_AVAILABLE"] = bool(game["VIDEO_AVAILABLE"])     if game["VIDEO_AVAILABLE"] is not None else None
     return game
 
-conn = sqlite3.connect("leaguegamelog.db")
+conn = sqlite3.connect("leaguegamelog_playoffs.db")
 cursor = conn.cursor()
 with open("schema.sql", "r") as f:
     cursor.executescript(f.read())
@@ -28,7 +28,7 @@ seasons = [str(i) + "-" + str(i+1)[2:] for i in range(1946, 2025)]
 
 
 for season in seasons:
-    d = leaguegamelog.LeagueGameLog(season=season, league_id="00").get_dict()
+    d = leaguegamelog.LeagueGameLog(season=season, league_id="00", season_type_all_star="Playoffs").get_dict()
     data = d.get('resultSets')[0]
     
     headers = data.get('headers')
