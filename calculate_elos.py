@@ -3,7 +3,7 @@ import pickle
 from nba_api.stats.static import teams
 from nba_api.stats.static import teams
 
-K_FACTOR = float(32)
+K_FACTOR = float(8)
 
 def calcProbability(elo1, elo2):
     """returns the probability that the entity with the 1st elo will win a single game"""
