@@ -24,7 +24,7 @@ print("successfully made table")
 
 
 
-seasons = [str(i) + "-" + str(i+1)[2:] for i in range(1946, 2025)]
+seasons = [str(i) + "-" + str(i+1)[2:] for i in range(2024, 2025)]
 
 
 for season in seasons:
