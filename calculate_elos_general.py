@@ -37,8 +37,11 @@ if args.calc_method:
             CROSS_FACTOR = args.CROSS_FACTOR
         else:
             raise Exception("variable calculation method requires you to specify a cross factor")
+    elif args.calc_method == "d":
+        CROSS_FACTOR = 0
 else:
     args.calc_method = "n"
+    CROSS_FACTOR = 0
 
 
 def calcProbability(elo1, elo2):
@@ -209,6 +212,7 @@ with open("abs_to_ids.pkl","rb") as f:
 
 elo_dict = {}
 games_seen = set()
+
 for game in games:
     updateEloDict(columns, game, elo_dict, games_seen, CROSS_FACTOR)
 
