@@ -25,8 +25,6 @@ args = parser.parse_args()
 if args.k_factor:
     K_FACTOR = args.k_factor
 
-
-
 K_FACTOR = float(8)
 
 if args.calc_method:
@@ -109,41 +107,46 @@ def home_team_won(columns, game):
     else:
         raise Exception("Shoud be impossible to get here")
 
-def updateEloDict(columns, game, elo_dict, games_seen, CROSS_FACTOR=0):
-    # print_translated(elo_dict)
-    SEASON_ID_INDEX = indexOf(columns, "SEASON_ID")
-    season_id = game[SEASON_ID_INDEX]
+def updateElosNormal(elo_dict, winner_id, loser_id, K_FACTOR):
+    if winner_id not in elo_dict:
+        elo_dict[winner_id] = 800
+    if loser_id not in elo_dict:
+        elo_dict[loser_id] = 800
+    win_probability_of_winner = calcProbability(elo_dict[winner_id], elo_dict[loser_id])
+    elo_dict[winner_id] = elo_dict[winner_id] + (K_FACTOR*(1 - win_probability_of_winner))
+    elo_dict[loser_id] = elo_dict[loser_id] - (K_FACTOR*(1-win_probability_of_winner))
 
-    GAME_ID_INDEX = indexOf(columns, "GAME_ID")
-    game_id = game[GAME_ID_INDEX]
-    # games often appear twice. *shrug*
-    if game_id in games_seen:
-        return
-    games_seen.add(game_id)
-    
-    TEAM_ID_INDEX = indexOf(columns,"TEAM_ID")
-    team_id = game[TEAM_ID_INDEX]
-    
-    MATCHUP_INDEX = indexOf(columns, "MATCHUP")
-    matchup = game[MATCHUP_INDEX]
-    
-    if "vs." in matchup:
-        team_abs = [t.replace(" ","") for t in matchup.split("vs.")]
-        team_abs[0] = (team_abs[0], "home")
-        team_abs[1] = (team_abs[1], "away")
-    elif "@" in matchup:
-        team_abs = [t.replace(" ","") for t in matchup.split("@")]
-        team_abs[0] = (team_abs[0], "away")
-        team_abs[1] = (team_abs[1], "home")
+
+def updateElosVariable(elo_dict, winner_id, loser_id, K_FACTOR, CROSS_FACTOR):
+    if (winner_id, "home") not in elo_dict:
+        elo_dict[(winner_id, "home")] = 800
+    if (winner_id, "away") not in elo_dict:
+        elo_dict[(winner_id, "away")] = 800
+ 
+    if (loser_id, "home") not in elo_dict:
+        elo_dict[(loser_id, "home")] = 800
+    if (loser_id, "away") not in elo_dict:
+        elo_dict[(loser_id, "away")] = 800
+ 
+    if home_team_won(columns, game): 
+        win_probability_of_winner = calcProbability(elo_dict[(winner_id, "home")], elo_dict[loser_id, "away"])
+        elo_dict[(winner_id, "home")] = elo_dict[(winner_id, "home")] + (K_FACTOR*(1 - win_probability_of_winner))
+        elo_dict[(loser_id, "away")] = elo_dict[(loser_id, "away")] - (K_FACTOR*(1-win_probability_of_winner))
+ 
+        elo_dict[(winner_id, "away")] = elo_dict[(winner_id, "away")] + CROSS_FACTOR * (K_FACTOR*(1 - win_probability_of_winner))
+        elo_dict[(loser_id, "home")] = elo_dict[(loser_id, "home")] - CROSS_FACTOR * (K_FACTOR*(1-win_probability_of_winner))
+    elif not(home_team_won(columns, game)):
+        win_probability_of_winner = calcProbability(elo_dict[(winner_id, "away")], elo_dict[loser_id, "home"])
+        elo_dict[(winner_id, "away")] = elo_dict[(winner_id, "away")] + (K_FACTOR*(1 - win_probability_of_winner))
+        elo_dict[(loser_id, "home")] = elo_dict[(loser_id, "home")] - (K_FACTOR*(1-win_probability_of_winner))
+ 
+        elo_dict[(winner_id, "home")] = elo_dict[(winner_id, "home")] + CROSS_FACTOR * (K_FACTOR*(1 - win_probability_of_winner))
+        elo_dict[(loser_id, "away")] = elo_dict[(loser_id, "away")] - CROSS_FACTOR * (K_FACTOR*(1-win_probability_of_winner))
     else:
-        raise Exception("neither 'vs' nor '@' found in matchup")
+        raise Exception("neither home team nor away team won!")
 
 
-    team_ids = [(abs_to_ids.get((ab[0], season_id)), ab[1]) for ab in team_abs]
-    
-    WL_INDEX = indexOf(columns, "WL")
-    result = game[WL_INDEX]
-    
+def getWinnerAndLoser(team_id, team_ids, result):
     if result == "W":
         winner_id = team_id
         just_ids = [team_id[0] for team_id in team_ids]
@@ -155,52 +158,61 @@ def updateEloDict(columns, game, elo_dict, games_seen, CROSS_FACTOR=0):
         just_ids.remove(loser_id)
         winner_id = just_ids[0]
     else:
-        if game == (22012, 1610612754, 'IND', 'Indiana Pacers', 21201214, '2013-04-16', 'IND @ BOS', None, 0.0, 0, 0, None, 0, 0, None, 0, 0, None, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0, 'regular season'):
-            """This game was cancelled due to the boston marathon, and never was actually played"""
-            return
-
+        breakpoint()
         raise Exception("result is neither 'W' nor 'L'")
+    return winner_id, loser_id
+    
+def getTeamAbbreviations(matchup):
+    if "vs." in matchup:
+        team_abbreviations = [t.replace(" ","") for t in matchup.split("vs.")]
+        team_abbreviations[0] = (team_abbreviations[0], "home")
+        team_abbreviations[1] = (team_abbreviations[1], "away")
+    elif "@" in matchup:
+        team_abbreviations = [t.replace(" ","") for t in matchup.split("@")]
+        team_abbreviations[0] = (team_abbreviations[0], "away")
+        team_abbreviations[1] = (team_abbreviations[1], "home")
+    else:
+        raise Exception("neither 'vs' nor '@' found in matchup")
+    return team_abbreviations
 
+def updateEloDict(columns, game, elo_dict, games_seen, CROSS_FACTOR=0):
+    if game in [(22012, 1610612754, 'IND', 'Indiana Pacers', 21201214, '2013-04-16', 'IND @ BOS', None, 0.0, 0, 0, None, 0, 0, None, 0, 0, None, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0, 'regular season'),
+                (22012, 1610612738, 'BOS', 'Boston Celtics', 21201214, '2013-04-16', 'BOS vs. IND', None, 0.0, 0, 0, None, 0, 0, None, 0, 0, None, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0, 'regular season')]:
+        """This game was cancelled due to the boston marathon bombing, and never was actually played"""
+        return
+
+    GAME_ID_INDEX = indexOf(columns, "GAME_ID")
+    game_id = game[GAME_ID_INDEX]
+
+    # games often appear twice. *shrug*
+    if game_id in games_seen:
+        return
+    games_seen.add(game_id)
+
+    SEASON_ID_INDEX = indexOf(columns, "SEASON_ID")
+    season_id = game[SEASON_ID_INDEX]
+    
+    TEAM_ID_INDEX = indexOf(columns,"TEAM_ID")
+    team_id = game[TEAM_ID_INDEX]
+    
+    MATCHUP_INDEX = indexOf(columns, "MATCHUP")
+    matchup = game[MATCHUP_INDEX]
+
+    team_abbreviations = getTeamAbbreviations(matchup)
+    team_ids = [(abs_to_ids.get((ab[0], season_id)), ab[1]) for ab in team_abbreviations]
+    
+    WL_INDEX = indexOf(columns, "WL")
+    result = game[WL_INDEX]
+    if result == None:
+        breakpoint()
+    winner_id, loser_id = getWinnerAndLoser(team_id, team_ids, result)
     
     if args.calc_method == "n":
-        if winner_id not in elo_dict:
-            elo_dict[winner_id] = 800
-        if loser_id not in elo_dict:
-            elo_dict[loser_id] = 800
-        win_probability_of_winner = calcProbability(elo_dict[winner_id], elo_dict[loser_id])
-        elo_dict[winner_id] = elo_dict[winner_id] + (K_FACTOR*(1 - win_probability_of_winner))
-        elo_dict[loser_id] = elo_dict[loser_id] - (K_FACTOR*(1-win_probability_of_winner))
-
-    elif args.calc_method == "v" or args.calc_method == "d":
-        if (winner_id, "home") not in elo_dict:
-            elo_dict[(winner_id, "home")] = 800
-        if (winner_id, "away") not in elo_dict:
-            elo_dict[(winner_id, "away")] = 800
-    
-        if (loser_id, "home") not in elo_dict:
-            elo_dict[(loser_id, "home")] = 800
-        if (loser_id, "away") not in elo_dict:
-            elo_dict[(loser_id, "away")] = 800
-     
-        if home_team_won(columns, game): 
-            win_probability_of_winner = calcProbability(elo_dict[(winner_id, "home")], elo_dict[loser_id, "away"])
-            elo_dict[(winner_id, "home")] = elo_dict[(winner_id, "home")] + (K_FACTOR*(1 - win_probability_of_winner))
-            elo_dict[(loser_id, "away")] = elo_dict[(loser_id, "away")] - (K_FACTOR*(1-win_probability_of_winner))
-    
-    
-            elo_dict[(winner_id, "away")] = elo_dict[(winner_id, "away")] + CROSS_FACTOR * (K_FACTOR*(1 - win_probability_of_winner))
-            elo_dict[(loser_id, "home")] = elo_dict[(loser_id, "home")] - CROSS_FACTOR * (K_FACTOR*(1-win_probability_of_winner))
-    
-        elif not(home_team_won(columns, game)):
-            win_probability_of_winner = calcProbability(elo_dict[(winner_id, "away")], elo_dict[loser_id, "home"])
-            elo_dict[(winner_id, "away")] = elo_dict[(winner_id, "away")] + (K_FACTOR*(1 - win_probability_of_winner))
-            elo_dict[(loser_id, "home")] = elo_dict[(loser_id, "home")] - (K_FACTOR*(1-win_probability_of_winner))
-    
-            elo_dict[(winner_id, "home")] = elo_dict[(winner_id, "home")] + CROSS_FACTOR * (K_FACTOR*(1 - win_probability_of_winner))
-            elo_dict[(loser_id, "away")] = elo_dict[(loser_id, "away")] - CROSS_FACTOR * (K_FACTOR*(1-win_probability_of_winner))
-    
-        else:
-            raise Exception("neither home team nor away team won!")
+        updateElosNormal(elo_dict, winner_id, loser_id, K_FACTOR)
+    elif args.calc_method == "v":
+        updateElosVariable(elo_dict, winner_id, loser_id, K_FACTOR, CROSS_FACTOR)
+    elif args.calc_method == "d":
+        updateElosVariable(elo_dict, winner_id, loser_id, K_FACTOR, CROSS_FACTOR=0)
     else:
         raise Exception("invalid calculation method, should impossible to get here")
 
