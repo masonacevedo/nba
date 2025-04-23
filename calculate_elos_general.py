@@ -117,7 +117,7 @@ def updateElosNormal(elo_dict, winner_id, loser_id, K_FACTOR):
     elo_dict[loser_id] = elo_dict[loser_id] - (K_FACTOR*(1-win_probability_of_winner))
 
 
-def updateElosVariable(elo_dict, winner_id, loser_id, K_FACTOR, CROSS_FACTOR):
+def updateElosVariable(game, columns, elo_dict, winner_id, loser_id, K_FACTOR, CROSS_FACTOR):
     if (winner_id, "home") not in elo_dict:
         elo_dict[(winner_id, "home")] = 800
     if (winner_id, "away") not in elo_dict:
@@ -158,7 +158,6 @@ def getWinnerAndLoser(team_id, team_ids, result):
         just_ids.remove(loser_id)
         winner_id = just_ids[0]
     else:
-        breakpoint()
         raise Exception("result is neither 'W' nor 'L'")
     return winner_id, loser_id
     
@@ -175,11 +174,12 @@ def getTeamAbbreviations(matchup):
         raise Exception("neither 'vs' nor '@' found in matchup")
     return team_abbreviations
 
-def updateEloDict(columns, game, elo_dict, games_seen, CROSS_FACTOR=0):
+def updateEloDict(columns, game, elo_dict, games_seen, abs_to_ids, CROSS_FACTOR=0):
     if game in [(22012, 1610612754, 'IND', 'Indiana Pacers', 21201214, '2013-04-16', 'IND @ BOS', None, 0.0, 0, 0, None, 0, 0, None, 0, 0, None, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0, 'regular season'),
                 (22012, 1610612738, 'BOS', 'Boston Celtics', 21201214, '2013-04-16', 'BOS vs. IND', None, 0.0, 0, 0, None, 0, 0, None, 0, 0, None, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0, 'regular season')]:
         """This game was cancelled due to the boston marathon bombing, and never was actually played"""
         return
+    print("game:", game)
 
     GAME_ID_INDEX = indexOf(columns, "GAME_ID")
     game_id = game[GAME_ID_INDEX]
@@ -203,33 +203,35 @@ def updateEloDict(columns, game, elo_dict, games_seen, CROSS_FACTOR=0):
     
     WL_INDEX = indexOf(columns, "WL")
     result = game[WL_INDEX]
-    if result == None:
-        breakpoint()
     winner_id, loser_id = getWinnerAndLoser(team_id, team_ids, result)
     
     if args.calc_method == "n":
         updateElosNormal(elo_dict, winner_id, loser_id, K_FACTOR)
     elif args.calc_method == "v":
-        updateElosVariable(elo_dict, winner_id, loser_id, K_FACTOR, CROSS_FACTOR)
+        updateElosVariable(game, columns, elo_dict, winner_id, loser_id, K_FACTOR, CROSS_FACTOR)
     elif args.calc_method == "d":
-        updateElosVariable(elo_dict, winner_id, loser_id, K_FACTOR, CROSS_FACTOR=0)
+        updateElosVariable(game, columns, elo_dict, winner_id, loser_id, K_FACTOR, CROSS_FACTOR=0)
     else:
         raise Exception("invalid calculation method, should impossible to get here")
 
 
-columns, games = read_games_from_dbs.getAllGames()
-with open("abs_to_ids.pkl","rb") as f:
-    abs_to_ids = pickle.load(f)
+def getEloDictAtEndOfRegSeason(season):
+    columns, games = read_games_from_dbs.getAllGames()
+    with open("abs_to_ids.pkl","rb") as f:
+        abs_to_ids = pickle.load(f)
+    
+    elo_dict = {}
+    games_seen = set()
+    
+    for index, game in enumerate(games):
+        playoffSeasonID = "4" + season[0:4]
+        if str(game[0]) == playoffSeasonID:
+            break
+        updateEloDict(columns, game, elo_dict, games_seen, abs_to_ids, CROSS_FACTOR)
+    
+    if args.calc_method == "n":
+        print_translated_normal(elo_dict)
+    elif args.calc_method == "v" or args.calc_method == "d":
+        print_translated_distinct_home_away(elo_dict)
 
-
-elo_dict = {}
-games_seen = set()
-
-for game in games:
-    updateEloDict(columns, game, elo_dict, games_seen, CROSS_FACTOR)
-
-
-if args.calc_method == "n":
-    print_translated_normal(elo_dict)
-elif args.calc_method == "v" or args.calc_method == "d":
-    print_translated_distinct_home_away(elo_dict)
+getEloDictAtEndOfRegSeason("2016-17")
