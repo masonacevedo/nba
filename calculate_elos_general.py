@@ -6,42 +6,6 @@ import argparse
 from nba_api.stats.static import teams
 from nba_api.stats.static import teams
 
-parser = argparse.ArgumentParser()
-parser.add_argument('-k','--k-factor',
-                    help="The K_FACTOR for ELO calculations. Default value is 8. Higher values mean more fast/sensitive adjustments, and vice versa.",
-                    type=float)
-parser.add_argument('-m', '--calc-method',
-                    help=("n - normal: Each team gets an ELO rating that updates normally"
-                          "d - distinct: Each team gets a distinct ELO rating for home agames and away games"
-                          "v - variable: Each team gets a distcint ELO rating for home games and away games, but home wins/losses also contribute some amount to the away wins/losses (and vice versa), as determined by a 'Cross Factor', which must also be passed in, if using 'variable' calculation"),
-                    choices=['n', 'd', 'v'],
-                    )
-
-parser.add_argument('-C', '--CROSS_FACTOR',
-                    type=float)
-
-args = parser.parse_args()
-
-if args.k_factor:
-    K_FACTOR = args.k_factor
-
-K_FACTOR = float(8)
-
-if args.calc_method:
-    if args.calc_method == "v":
-        print("got here")
-        if args.CROSS_FACTOR:
-            print("also here")
-            CROSS_FACTOR = args.CROSS_FACTOR
-        else:
-            raise Exception("variable calculation method requires you to specify a cross factor")
-    elif args.calc_method == "d":
-        CROSS_FACTOR = 0
-else:
-    args.calc_method = "n"
-    CROSS_FACTOR = 0
-
-
 def calcProbability(elo1, elo2):
     """returns the probability that the entity with the 1st elo will win a single game"""
     diff = elo2 - elo1
@@ -174,12 +138,11 @@ def getTeamAbbreviations(matchup):
         raise Exception("neither 'vs' nor '@' found in matchup")
     return team_abbreviations
 
-def updateEloDict(columns, game, elo_dict, games_seen, abs_to_ids, CROSS_FACTOR=0):
+def updateEloDict(columns, game, elo_dict, games_seen, abs_to_ids, calculation_method, K_FACTOR, CROSS_FACTOR):
     if game in [(22012, 1610612754, 'IND', 'Indiana Pacers', 21201214, '2013-04-16', 'IND @ BOS', None, 0.0, 0, 0, None, 0, 0, None, 0, 0, None, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0, 'regular season'),
                 (22012, 1610612738, 'BOS', 'Boston Celtics', 21201214, '2013-04-16', 'BOS vs. IND', None, 0.0, 0, 0, None, 0, 0, None, 0, 0, None, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0, 'regular season')]:
         """This game was cancelled due to the boston marathon bombing, and never was actually played"""
         return
-    print("game:", game)
 
     GAME_ID_INDEX = indexOf(columns, "GAME_ID")
     game_id = game[GAME_ID_INDEX]
@@ -205,17 +168,28 @@ def updateEloDict(columns, game, elo_dict, games_seen, abs_to_ids, CROSS_FACTOR=
     result = game[WL_INDEX]
     winner_id, loser_id = getWinnerAndLoser(team_id, team_ids, result)
     
-    if args.calc_method == "n":
+    if calculation_method == "n":
         updateElosNormal(elo_dict, winner_id, loser_id, K_FACTOR)
-    elif args.calc_method == "v":
+    elif calculation_method == "v":
         updateElosVariable(game, columns, elo_dict, winner_id, loser_id, K_FACTOR, CROSS_FACTOR)
-    elif args.calc_method == "d":
+    elif calculation_method == "d":
         updateElosVariable(game, columns, elo_dict, winner_id, loser_id, K_FACTOR, CROSS_FACTOR=0)
     else:
         raise Exception("invalid calculation method, should impossible to get here")
 
 
-def getEloDictAtEndOfRegSeason(season):
+def getEloDictAtEndOfRegSeason(season, K_FACTOR=8.0, calculation_method="n", CROSS_FACTOR=0):
+    """
+    other valid calculation methods are "v" for variable, and "d" for distinct.
+    if you want "v", you also have to specify the cross_factor.
+
+    K_FACTOR: The K_FACTOR for ELO calculations. Default value is 8. Higher values mean more fast/sensitive adjustments, and vice versa.",
+
+    Calculation method: (n - normal: Each team gets an ELO rating that updates normally
+                         d - distinct: Each team gets a distinct ELO rating for home agames and away games
+                         v - variable: Each team gets a distcint ELO rating for home games and away games, but home wins/losses also contribute some amount to the away wins/losses (and vice versa), as determined by a 'Cross Factor', which must also be passed in, if using 'variable' calculation),
+    """
+    
     columns, games = read_games_from_dbs.getAllGames()
     with open("abs_to_ids.pkl","rb") as f:
         abs_to_ids = pickle.load(f)
@@ -227,11 +201,6 @@ def getEloDictAtEndOfRegSeason(season):
         playoffSeasonID = "4" + season[0:4]
         if str(game[0]) == playoffSeasonID:
             break
-        updateEloDict(columns, game, elo_dict, games_seen, abs_to_ids, CROSS_FACTOR)
+        updateEloDict(columns, game, elo_dict, games_seen, abs_to_ids, calculation_method, K_FACTOR, CROSS_FACTOR)
     
-    if args.calc_method == "n":
-        print_translated_normal(elo_dict)
-    elif args.calc_method == "v" or args.calc_method == "d":
-        print_translated_distinct_home_away(elo_dict)
-
-getEloDictAtEndOfRegSeason("2016-17")
+    return elo_dict
