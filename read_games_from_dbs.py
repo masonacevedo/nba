@@ -35,9 +35,6 @@ def getAllGames():
     all_games = reg_season_games + playoff_games
 
 
-    print("len(reg_season_games)", len(reg_season_games))
-    print("len(playoff_games", len(playoff_games))
-    print("len(all_games)", len(all_games))
 
     all_games = sorted(all_games, key=lambda game: dateFromGame(game))
     return columns, all_games

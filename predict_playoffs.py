@@ -29,19 +29,32 @@ def predictPlayoffs(season):
 
 def easternSeed(row, seedNum, headers):
     conference_index = headers.index("Conference")
-    seed_index = headers.index('PlayoffSeeding')
-    return row[conference_index] == "East" and row[seed_index] == seedNum
+    # seed_index = headers.index('PlayoffSeeding')
+    rank_index = headers.index('PlayoffRank')
+    return row[conference_index] == "East" and row[rank_index] == seedNum
 
 def westernSeed(row, seedNum, headers):
     conference_index = headers.index("Conference")
-    seed_index = headers.index('PlayoffSeeding')
-    return row[conference_index] == "West" and row[seed_index] == seedNum
+    # seed_index = headers.index('PlayoffSeeding')
+    rank_index = headers.index('PlayoffRank')
+    return row[conference_index] == "West" and row[rank_index] == seedNum
+    
 
 def getEastSeed(rows, n, headers):
-    return list(filter(lambda row: easternSeed(row, n, headers), rows))[0]
+    
+    try:
+        return list(filter(lambda row: easternSeed(row, n, headers), rows))[0]
+    except Exception as e:
+        print("e:", e)
 
+    
 def getWestSeed(rows, n, headers):
-    return list(filter(lambda row: westernSeed(row, n, headers), rows))[0]
+    try:
+        return list(filter(lambda row: westernSeed(row, n, headers), rows))[0]
+    except Exception as e:
+        print("e:", e)
+
+    
 
 def getInitialSeries(playoff_standings):
     resultSets = playoff_standings.get('resultSets')[0]
@@ -102,11 +115,15 @@ def predictWinners(playoff_standings, seriesDict, elo_dict):
 
         prettyS1 = s1 + " "*(l - len(s1))
         prettyS2 = s2 + " "*(l - len(s2))   
-        # print("len(prettyS1):",len(prettyS1))
-        # print("len(prettyS2):",len(prettyS2))
+        print("len(prettyS1):",len(prettyS1))
+        print("len(prettyS2):",len(prettyS2))
         print(prettyS1, win_prob)
         print(prettyS2, 1 - win_prob)
         print("\n")
 
+seasons = [str(i) + "-" + str(i+1)[2:] for i in range(1946, 2025)]
 
-predictPlayoffs("2024-25")
+for s in list(reversed(seasons)):
+    print(s, 'attempting')
+    predictPlayoffs(s)
+    print()
