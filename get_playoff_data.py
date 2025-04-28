@@ -47,5 +47,4 @@ for season in seasons:
     
     conn.commit()
     print("data saved for season", season)
-    time.sleep(30)
 conn.close()
