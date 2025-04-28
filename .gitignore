@@ -1,3 +1,4 @@
 leaguegamelog.db
 leaguegamelog_playoffs.db
 __pycache__/
+*playoff_standings.pkl
