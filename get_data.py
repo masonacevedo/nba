@@ -1,4 +1,4 @@
-from nba_api.stats.endpoints import leaguegamelog
+from nba_api.stats.endpoints import leaguegamelog, leaguegamefinder
 import pickle
 import sqlite3
 import time
@@ -24,15 +24,24 @@ print("successfully made table")
 
 
 
-seasons = [str(i) + "-" + str(i+1)[2:] for i in range(1946, 2025)]
+seasons = [str(i) + "-" + str(i+1)[2:] for i in range(2024, 2025)]
 
 
 for season in seasons:
     d = leaguegamelog.LeagueGameLog(season=season, league_id="00").get_dict()
+    d_2 = leaguegamefinder.LeagueGameFinder(season_nullable=season, league_id_nullable="00").get_dict()
     data = d.get('resultSets')[0]
+    data_2 = d_2.get('resultSets')[0]
+
     
     headers = data.get('headers')
+    headers_2 = data_2.get('headers')
+    print("headers:", headers)
+    print("headers_2:", headers_2)
+    input()
+
     rows = data.get('rowSet')
+    rows2 = data_2.get('rowSet')
     print(f"there are {len(rows)} rows in the rowSet")
     
     for index, row in enumerate(rows):
